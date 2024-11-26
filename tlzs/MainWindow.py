@@ -7,7 +7,7 @@ import psutil
 from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QComboBox, QStackedWidget, \
     QGridLayout, QButtonGroup, QGroupBox, QRadioButton, QTextEdit, QProgressBar, QAction, QMessageBox, \
-    QFileDialog
+    QFileDialog, QLabel
 import CustomTextEdit
 import Realphone_Thead
 import WorkerThread
@@ -105,6 +105,24 @@ class MainWindow(QMainWindow):
         self.groupBox2 = QGroupBox(self)
         self.groupBox2.setTitle("其他常用系列")
 
+        self.groupBoxInput = QGroupBox(self)
+        self.groupBoxInput.setTitle("数据可能的长度")
+
+        self.labelMinLength = QLabel("最小长度:")
+        self.inputMinLength = QLineEdit()
+        self.inputMinLength.setText("32")
+
+        self.labelMaxLength = QLabel("最大长度:")
+        self.inputMaxLength = QLineEdit()
+        self.inputMaxLength.setText("36")
+
+        self.groupBoxInputLayout = QVBoxLayout()
+        self.groupBoxInputLayout.addWidget(self.labelMinLength)
+        self.groupBoxInputLayout.addWidget(self.inputMinLength)
+        self.groupBoxInputLayout.addWidget(self.labelMaxLength)
+        self.groupBoxInputLayout.addWidget(self.inputMaxLength)
+        self.groupBoxInput.setLayout(self.groupBoxInputLayout)
+
         self.groupBox3 = QGroupBox(self)
         self.groupBox3.setTitle("猜测可能的明文格式")
         self.radio_button1 = QRadioButton("MD5", self)
@@ -133,6 +151,7 @@ class MainWindow(QMainWindow):
         self.radio_button20 = QRadioButton("全部算法(不含HMAC)", self)
         self.radio_button21 = QRadioButton("普通模式", self)
         self.radio_button22 = QRadioButton("深入模式", self)
+
         self.radio_button23 = QRadioButton("选择本地模型", self)
         self.radio_button24 = QRadioButton("WX小程序", self)
         self.radio_button25 = QRadioButton("明文格式", self)
@@ -205,6 +224,7 @@ class MainWindow(QMainWindow):
         self.button_group2.addButton(self.radio_button10)
         self.button_group2.addButton(self.radio_button11)
         self.button_group2.addButton(self.radio_button25)
+
         self.button_group3.addButton(self.radio_button12)
         self.button_group3.addButton(self.radio_button13)
         self.button_group3.addButton(self.radio_button15)
@@ -224,6 +244,7 @@ class MainWindow(QMainWindow):
 
         self.button_group4.addButton(self.radio_button21)
         self.button_group4.addButton(self.radio_button22)
+
         # 创建开始按钮
         self.task_button = QPushButton("开始推理", self)
 
@@ -252,8 +273,15 @@ class MainWindow(QMainWindow):
         self.groupBox.setLayout(self.QRadioButton_layout)
         self.groupBox2.setLayout(self.QRadioButton_layout2)
 
+
+
         self.vbox_layout.addWidget(self.text_knowedit)
         self.vbox_layout.addWidget(self.groupBox3)
+
+
+        self.vbox_layout.addWidget(self.groupBoxInput)
+
+
         self.groupBox3.setLayout(self.QRadioButton_layout3)
         self.vbox_layout.addWidget(self.text_unknowedit)
 
@@ -328,7 +356,7 @@ class MainWindow(QMainWindow):
             self.task_button.setEnabled(False)
             self.worker = WorkerThread.WorkerAllThread(self.file_path, self.hash_name, self.text_knowedit.toPlainText(),
                                                        self.text_unknowedit.toPlainText(),
-                                                       self.button_group2.checkedButton().text(), 1, is_deep)
+                                                       self.button_group2.checkedButton().text(), 1, is_deep,None,self.inputMinLength.text(),self.inputMaxLength.text())
             self.worker.message_changed.connect(self.append_message)
             self.worker.message_end.connect(self.worker_end)
             self.worker.message_log.connect(self.worker_log)
@@ -341,7 +369,7 @@ class MainWindow(QMainWindow):
             self.task_button.setEnabled(False)
             self.worker = WorkerThread.WorkerAllThread(self.file_path, self.hash_name, self.text_knowedit.toPlainText(),
                                                        self.text_unknowedit.toPlainText(),
-                                                       self.button_group2.checkedButton().text(), 0, is_deep)
+                                                       self.button_group2.checkedButton().text(), 0, is_deep,None,self.inputMinLength.text(),self.inputMaxLength.text())
 
             self.worker.message_changed.connect(self.append_message)
             self.worker.message_end.connect(self.worker_end)
@@ -551,8 +579,8 @@ class MainWindow(QMainWindow):
             self.radio_button22.show()
 
         else:
-            self.radio_button21.hide()
-            self.radio_button22.hide()
+            self.radio_button21.show()
+            self.radio_button22.show()
 
         if self.button_group.checkedButton().text() == "HMACMD5" or self.button_group.checkedButton().text() == "HMACSHA1" or self.button_group.checkedButton().text() == "HMACSHA256":
             self.text_knowedit.setPlaceholderText("在这里输入你知道的部分明文...(不填很慢)")  # 设置占位符文本

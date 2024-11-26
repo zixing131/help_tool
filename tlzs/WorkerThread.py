@@ -624,7 +624,6 @@ def split_iter(data, delimiter_pattern, pattern, ll):
 
 def cpu_bound_hashtask(args):
     key, text_know, text_know_type, algo_input, target_str = args
-
     if text_know and text_know.encode() not in key and text_know.encode(
             "gbk") not in key:
         return False
@@ -885,9 +884,36 @@ def cpu_bound_task_search_utf8(args):
         except:
             return False
 
+def count_possible_substrings(raw_array, min_length=4, max_length=None):
+    # 确定数组的长度
+    length = len(raw_array)
+
+    if max_length is None:
+        max_length = length  # 如果没有提供最大长度，则使用整个数组的长度
+
+    total_count = 0
+
+    for start in range(length):
+        for end in range(start + min_length, min(start + max_length, length) + 1):
+            total_count += 1
+
+    return total_count
+
+#滑动窗口匹配字符串
+def find_substrings_iter(raw_array, min_length=4, max_length=None):
+    # 确定数组的长度
+    length = len(raw_array)
+
+    if max_length is None:
+        max_length = length  # 如果没有提供最大长度，则使用整个数组的长度
+
+    for start in range(length):
+        for end in range(start + min_length, min(start + max_length, length) + 1):
+            # 提取子字符串并转换为字符串类型
+            yield bytes(raw_array[start:end])
 
 def find_matching_plaintext(dump_file, target_str, algo_input, use_hmac, text_know, text_know_type, queue, is_deep,
-                            is_all_hash=False):
+                            is_all_hash=False,minLen=32,maxLen=64):
     count_4_totle = dump_file.get('count_4_totle')
     shared_all_file = dump_file.get('shared_all_file')
     pattern_all = re.compile(b'[ -~\x80-\xff]{4,}')
@@ -1012,8 +1038,14 @@ def find_matching_plaintext(dump_file, target_str, algo_input, use_hmac, text_kn
 
             for name in ["md5", "sha1", "sha256", "sm3"]:
                 algo_input = name
-                args = ((i.group(), text_know, text_know_type, algo_input, target_str) for i in
+                if(not is_deep):
+                    args = ((i.group(), text_know, text_know_type, algo_input, target_str) for i in
                         pattern_all.finditer(shared_all_file))
+                else:
+                    args = ((i, text_know, text_know_type, algo_input, target_str) for i in
+                            find_substrings_iter(shared_all_file, minLen, maxLen))
+
+                    count_4_totle = count_possible_substrings(shared_all_file, minLen, maxLen)
                 output_stream = CustomBytesOutput(queue)
                 message_totle(100, queue)
                 with Pool(initializer=init, initargs=(shared_all_file,)) as pool:
@@ -1028,10 +1060,17 @@ def find_matching_plaintext(dump_file, target_str, algo_input, use_hmac, text_kn
 
         else:
             if not use_hmac:
-                args = ((i.group(), text_know, text_know_type, algo_input, target_str) for i in
-                        pattern_all.finditer(shared_all_file))
+                #.group()
+                if(not is_deep):
+                    args = ((i.group(), text_know, text_know_type, algo_input, target_str) for i in
+                            pattern_all.finditer(shared_all_file))
+                else:
+                    args = ((i, text_know, text_know_type, algo_input, target_str) for i in
+                            find_substrings_iter(shared_all_file, minLen, maxLen))
+                    count_4_totle = count_possible_substrings(shared_all_file, minLen, maxLen)
                 output_stream = CustomBytesOutput(queue)
                 message_totle(100, queue)
+
                 with Pool(initializer=init, initargs=(shared_all_file,)) as pool:
                     for result in tqdm(pool.imap_unordered(cpu_bound_hashtask, args, 1000),
                                        total=count_4_totle,
@@ -1085,8 +1124,19 @@ class WorkerAllThread(QThread):
     message_log = pyqtSignal(tuple)
     message_totle = pyqtSignal(int)
 
-    def __init__(self, file_path, hash_name, text_know, text_unknow, text_know_type, is_all, is_deep, parent=None):
+    def __init__(self, file_path, hash_name, text_know, text_unknow, text_know_type, is_all, is_deep, parent=None,minLen=32,maxLen=36):
         super().__init__(parent)
+        try:
+            minLen = int(minLen)
+        except:
+            pass
+        try:
+            maxLen = int(maxLen)
+        except:
+            pass
+
+        self.minLen=minLen
+        self.maxLen=maxLen
         self.file_path = file_path
         self.hash_name = hash_name
         self.text_know = text_know
@@ -1156,7 +1206,7 @@ class WorkerAllThread(QThread):
                 pp = multiprocessing.Process(target=find_matching_plaintext, args=(
                     dump_file, target_hash, algo_input, use_hmac, self.text_know, self.text_know_type, queue,
                     self.is_deep,
-                    True if name == '哈希系列' else False))
+                    True if name == '哈希系列' else False,self.minLen,self.maxLen))
                 self.processes_list.append(pp)
                 pp.start()
                 self.send(f'开启{name}推理进程\n')
@@ -1231,7 +1281,7 @@ class WorkerAllThread(QThread):
                 algo_input = algo_input
 
             self.p = multiprocessing.Process(target=find_matching_plaintext, args=(
-                dump_file, target_hash, algo_input, use_hmac, self.text_know, self.text_know_type, queue, self.is_deep))
+                dump_file, target_hash, algo_input, use_hmac, self.text_know, self.text_know_type, queue, self.is_deep,self.is_all,self.minLen,self.maxLen))
             self.p.start()
             while self.p.is_alive() or not queue.empty():
                 result = queue.get()

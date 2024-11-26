@@ -1,0 +1,5 @@
+/.idea
+/.venv
+/tlzs.dist
+/build
+*.pyc
