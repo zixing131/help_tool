@@ -3,3 +3,4 @@
 /tlzs.dist
 /build
 *.pyc
+/dist
